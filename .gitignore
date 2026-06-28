@@ -1,0 +1,35 @@
+# secrets
+.env
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# node
+node_modules/
+
+# data / 모델 가중치 / 캐시 (git에 올리지 않음 — 용량)
+data/**/*.png
+data/**/*.jpg
+data/**/*.glb
+data/**/*.ply
+data/cache/
+models/
+*.weights
+chroma/
+*.sqlite3
+
+# 오디오 캐시 (VARCO text2sound 결과)
+audio_cache/
+*.mp3
+*.wav
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+test/

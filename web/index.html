@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>museable — 가변형 핀 도슨트 (3D 핀 뷰)</title>
+<style>
+  :root{ --bg:#0c0e12; --panel:#15181f; --line:#262b35; --ink:#e9e7e1; --sub:#9aa0ab; --accent:#d4a373; --accent2:#7ec8a9; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Apple SD Gothic Neo','Pretendard',sans-serif;overflow:hidden;}
+  #app{display:grid;grid-template-columns:280px 1fr;height:100vh;}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow:auto;}
+  aside h1{font-size:17px;letter-spacing:-.4px;margin-bottom:2px;}
+  aside h1 b{color:var(--accent);}
+  aside .tag{font-size:11px;color:var(--sub);margin-bottom:18px;}
+  .grp-title{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;}
+  .art{display:block;width:100%;text-align:left;background:#1c2029;border:1px solid var(--line);color:var(--ink);
+       border-radius:10px;padding:11px 13px;margin-bottom:9px;cursor:pointer;font-family:inherit;}
+  .art:hover{border-color:var(--accent);}
+  .art.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+  .art .t{font-size:14px;font-weight:600;}
+  .art .s{font-size:11px;color:var(--sub);margin-top:3px;}
+  #upBox input[type=text],#upBox select{width:100%;background:#0f1218;border:1px solid var(--line);
+        border-radius:8px;color:var(--ink);padding:8px 10px;font-size:12.5px;font-family:inherit;margin-bottom:7px;}
+  #upBox input[type=file]{width:100%;font-size:11px;color:var(--sub);margin-bottom:8px;}
+  #upMsg{font-size:11px;color:var(--accent2);margin-top:6px;min-height:14px;}
+  .ctl{margin-top:6px;}
+  .ctl label{display:block;font-size:11px;color:var(--sub);margin:12px 0 5px;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  button.act{width:100%;background:var(--accent);color:#1a1408;border:none;border-radius:10px;
+             padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:14px;}
+  button.ghost{background:#1c2029;color:var(--ink);border:1px solid var(--line);border-radius:9px;
+               padding:9px;font-size:12.5px;cursor:pointer;font-family:inherit;width:100%;margin-top:8px;}
+  button.ghost.on{border-color:var(--accent2);color:var(--accent2);}
+  main{position:relative;}
+  #c{display:block;width:100%;height:100%;}
+  #hud{position:absolute;left:18px;top:16px;font-size:12px;color:var(--sub);pointer-events:none;}
+  #hud b{color:var(--accent2);}
+  #stat{position:absolute;right:18px;top:16px;font-size:11px;color:var(--sub);text-align:right;line-height:1.7;}
+  #stat .k{color:var(--ink);}
+  #docent{position:absolute;left:18px;right:18px;bottom:16px;max-width:760px;margin:0 auto;
+          background:rgba(21,24,31,.92);border:1px solid var(--line);border-radius:14px;padding:14px 16px;backdrop-filter:blur(6px);}
+  #docent .dhead{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+  #docent .dtag{background:#272d3a;color:#6ea8d8;border-radius:5px;padding:1px 7px;font-size:10px;margin-left:6px;letter-spacing:0;}
+  #docent .dtext{font-size:13.5px;line-height:1.7;color:var(--ink);max-height:108px;overflow:auto;white-space:pre-wrap;}
+  .art{position:relative;padding-right:34px;}
+  .art .del{position:absolute;top:8px;right:8px;width:22px;height:22px;line-height:20px;text-align:center;
+        border-radius:6px;background:#2a2030;border:1px solid #4a2f3a;color:#d98a9a;font-size:13px;cursor:pointer;}
+  .art .del:hover{background:#3a2530;color:#ff9ba8;}
+  #docent .dsrc{font-size:10.5px;color:var(--accent2);margin-top:7px;min-height:13px;}
+  #docent .dask{display:flex;gap:8px;margin-top:10px;}
+  #docent .dask input{flex:1;background:#0f1218;border:1px solid var(--line);border-radius:8px;
+        color:var(--ink);padding:9px 12px;font-size:13px;font-family:inherit;}
+  #docent .dask button{background:var(--accent2);color:#0a140f;border:none;border-radius:8px;
+        padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  #docent .dask button:disabled{opacity:.5;cursor:default;}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <h1><b>museable</b> · 핀 도슨트</h1>
+    <div class="tag">정면 height map → n×m 핀 실시간 상승 (A4)</div>
+
+    <div class="grp-title">작품 등록 (사진 → 핀)</div>
+    <div id="upBox">
+      <input type="text" id="upTitle" placeholder="작품명" />
+      <input type="text" id="upEra" placeholder="시대 (예: 고려 12세기)" />
+      <select id="upType"><option value="3d">입체 유물</option><option value="2d">평면 회화</option></select>
+      <input type="file" id="upFile" accept="image/*" />
+      <button class="ghost" id="upBtn">＋ 사진 올려 작품 만들기</button>
+      <div id="upMsg"></div>
+    </div>
+
+    <div class="grp-title">작품 선택</div>
+    <div id="artList"></div>
+
+    <button class="act" id="btnRaise">▶ 핀 올리기</button>
+
+    <div class="ctl">
+      <label>ROI 확대 / 축소 (zoom)</label>
+      <input type="range" id="zoom" min="100" max="260" value="100">
+      <label>관찰 각도(자유 회전은 마우스 드래그)</label>
+      <button class="ghost" id="btnSpin">⟳ 자동 회전</button>
+      <button class="ghost" id="btnReset">초기화</button>
+    </div>
+
+    <div class="grp-title" style="margin-top:22px;">계약 (H Contract)</div>
+    <div style="font-size:11px;color:var(--sub);line-height:1.7;">
+      격자 <span class="k" id="cGrid">—</span> · 레벨 <span id="cLv">—</span>단계<br>
+      핀 높이 = H 양자화값 그대로 →<br>결선 FPGA 이진수와 동일 값
+    </div>
+  </aside>
+
+  <main>
+    <canvas id="c"></canvas>
+    <div id="hud"><b id="hudTitle">작품을 고르고 「핀 올리기」</b><br><span id="hudSub" style="color:var(--sub)"></span></div>
+    <div id="stat">
+      <span class="k" id="stPins">—</span> pins<br>
+      소스: <span class="k" id="stSrc">—</span>
+    </div>
+
+    <div id="docent">
+      <div class="dhead">AI 도슨트 <span class="dtag">EXAONE</span></div>
+      <div id="dtext" class="dtext">작품을 올리면 도슨트가 생성됩니다.</div>
+      <div id="dsrc" class="dsrc"></div>
+      <div class="dask">
+        <input id="dq" type="text" placeholder="작품에 대해 질문해 보세요 (예: 왜 손을 뺨에 댔어?)" />
+        <button id="dsend">질문</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
