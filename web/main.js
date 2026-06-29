@@ -156,7 +156,8 @@ function renderList() {
   listEl.innerHTML = '';
   artworks.forEach(a => {
     const b = document.createElement('div'); b.className = 'art'; b.id = 'a-' + a.id;
-    b.innerHTML = `<div class="t">${a.title}</div><div class="s">${a.era} · ${a.type === '2d' ? '회화(윤곽 relief)' : '입체 유물'}</div>`;
+    const badge = a.real === false ? ' <span style="color:#caa05a">· 합성 예시</span>' : '';
+    b.innerHTML = `<div class="t">${a.title}</div><div class="s">${a.era} · ${a.type === '2d' ? '회화(윤곽 relief)' : '입체 유물'}${badge}</div>`;
     b.onclick = () => selectArt(a);
     const del = document.createElement('div'); del.className = 'del'; del.textContent = '✕'; del.title = '삭제';
     del.onclick = (e) => { e.stopPropagation(); deleteArt(a); };
@@ -207,9 +208,34 @@ async function loadDocent() {
   try {
     const r = await fetch(`/api/artworks/${current.id}/docent`);
     const j = await r.json();
-    dtext.textContent = j.text || '(빈 응답)';
+    const text = j.text || '(빈 응답)';
+    dtext.textContent = text;
     showSources(j.sources, j.grounded);
+    speak(text);                 // 도슨트 낭독 (브라우저 TTS)
+    playAmbience(current.id);    // 작품 분위기음 (VARCO text2sound, 배경)
   } catch (e) { dtext.textContent = '도슨트 생성 실패: ' + e; }
+}
+
+/* 도슨트 낭독 — 브라우저 한국어 TTS (키 불필요) */
+function speak(t) {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t); u.lang = 'ko-KR'; u.rate = 1.02;
+    speechSynthesis.speak(u);
+  } catch {}
+}
+
+/* VARCO 분위기음 — 배경으로 작게 재생 (키 없으면 503 → 조용히 무시) */
+async function playAmbience(id) {
+  if (!useBackend) return;
+  const audio = document.getElementById('audio'), tag = document.getElementById('audioTag');
+  try {
+    const r = await fetch(`/api/artworks/${id}/ambience`);
+    if (!r.ok) { tag.style.display = 'none'; return; }
+    audio.src = URL.createObjectURL(await r.blob());
+    audio.volume = 0.35; audio.loop = true; tag.style.display = '';
+    audio.play().catch(() => {});
+  } catch { tag.style.display = 'none'; }
 }
 
 function showSources(sources, grounded) {
@@ -247,6 +273,8 @@ document.getElementById('btnSpin').onclick = function () { spin = !spin; this.cl
 document.getElementById('btnReset').onclick = () => {
   dropAll(); spin = false; document.getElementById('btnSpin').classList.remove('on');
   scene.rotation.y = 0;
+  try { speechSynthesis.cancel(); } catch {}
+  const a = document.getElementById('audio'); a.pause(); a.removeAttribute('src');
   document.getElementById('hudTitle').textContent = '작품을 고르고 「핀 올리기」';
   document.getElementById('hudSub').textContent = '';
 };
@@ -263,7 +291,8 @@ upBtn.onclick = async () => {
   fd.append('era', document.getElementById('upEra').value.trim());
   fd.append('type', document.getElementById('upType').value);
   fd.append('image', f);
-  upBtn.disabled = true; upMsg.textContent = '사진 분석 중… (relief → H 생성)';
+  upBtn.disabled = true;
+  upMsg.textContent = '사진 분석 중… 배경제거 → 3D 생성(최대 1~2분) → 핀 H. 터미널 로그 참고.';
   try {
     const r = await fetch('/api/artworks', { method: 'POST', body: fd });
     if (!r.ok) throw new Error(await r.text());

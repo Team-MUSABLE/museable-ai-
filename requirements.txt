@@ -1,20 +1,25 @@
-# --- Phase A (GPU 없음, API 무제한) ---
+# Phase A (GPU 없음, CPU). Python 3.13
+# 설치:  python -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 백엔드 / API
 fastapi
 uvicorn[standard]
-numpy
-pillow
-requests
+python-multipart          # 파일 업로드(작품 등록)
 python-dotenv
+requests
 
-# A3 depth/relief (CPU)
-opencv-python-headless
-# depth estimation 모델은 Phase A에서 경량 CPU 버전으로 시작 → B1에서 GPU 전환
-# transformers
-# torch            # B1에서 GPU 빌드로 교체
+# A1 AI
+openai                    # K-EXAONE (Friendli, OpenAI 호환)
+# VARCO(text2sound·image-to-3D)는 requests 로 직접 호출 — 추가 패키지 없음
 
 # A2 RAG
-chromadb
-sentence-transformers   # BGE-Korean / KoSimCSE 임베딩
+chromadb                  # 벡터 검색 (기본 onnx 임베딩 사용 → torch 불필요)
+# TODO(B3): BGE-Korean/KoSimCSE 임베딩(GPU)로 교체 시 sentence-transformers 추가
 
-# (옵션) STT — A6
-# openai-whisper
+# A3 형태 파이프라인
+numpy
+pillow                    # 이미지 처리
+rembg                     # 배경 제거(단일 오브젝트 추출)
+onnxruntime               # rembg/chroma 런타임
+trimesh                   # GLB 3D → 정면 깊이맵(H)
+rtree                     # trimesh 레이캐스트 가속

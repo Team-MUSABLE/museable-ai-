@@ -32,4 +32,11 @@ audio_cache/
 .DS_Store
 .idea/
 .vscode/
-test/
+
+# test 관련
+edu/
+test.py
+
+
+# SQLite 영속 DB
+museable.db

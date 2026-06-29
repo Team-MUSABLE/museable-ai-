@@ -81,13 +81,16 @@ def image_to_h(path: str, art_type: str = "3d") -> np.ndarray:
         edges = np.asarray(src.convert("L").filter(ImageFilter.FIND_EDGES).resize((cols, rows)), dtype=float)
         a = edges * (alpha if cut is not None else 1.0)
     else:
-        # 피사체 내부 밝기 정규화 → 실루엣을 바닥에서 띄우고 내부 입체감 부여
+        # '부푼 실루엣': 피사체 마스크를 블러 → 가장자리는 낮고 안쪽은 높게(둥근 부조).
+        # 이러면 앉은 형상 등 '윤곽'이 그대로 솟아 알아볼 수 있다(밝기 블롭 X).
+        mask_img = Image.fromarray((np.clip(alpha, 0, 1) * 255).astype("uint8"))
+        puff = np.asarray(mask_img.filter(ImageFilter.GaussianBlur(max(2, cols // 9))), dtype=float) / 255.0
         g = gray.copy()
         if mask.any():
             mn, mx = g[mask].min(), g[mask].max()
             g = (g - mn) / (mx - mn + 1e-6)
-        a = alpha * (0.45 + 0.55 * np.clip(g, 0, 1))  # 실루엣 0.45 + 밝기 0.55
-        a *= (alpha > 0.1)  # 배경 완전히 0
+        a = puff * (0.7 + 0.3 * np.clip(g, 0, 1))   # 실루엣 형태 0.7 + 내부 명암 0.3
+        a *= (alpha > 0.1)                          # 배경 완전히 0
 
     a = np.clip(a, 0, None)
     if np.ptp(a) > 0:

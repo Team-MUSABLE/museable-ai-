@@ -28,8 +28,28 @@ def _client():
     return chromadb.PersistentClient(path=str(_CHROMA))
 
 
+def _chunk(text: str, size: int = 500, overlap: int = 80) -> list[str]:
+    """문단 우선 → 길면 size 단위로 분할(약간 겹치게). 학술자료/위키 본문용."""
+    paras = [p.strip() for p in text.replace("\r", "").split("\n\n") if p.strip()]
+    out: list[str] = []
+    for p in paras:
+        if len(p) <= size:
+            out.append(p)
+        else:
+            i = 0
+            while i < len(p):
+                out.append(p[i:i + size])
+                i += size - overlap
+    return out
+
+
 def ingest() -> int:
-    """corpus/*.json 의 모든 청크를 (재)인덱싱."""
+    """
+    (재)인덱싱:
+      1) corpus/*.json        — 손수 큐레이션한 핵심 사실 청크
+      2) corpus/docs/<id>/*.txt|*.md — 위키/학술자료 등 외부 문서(자동 청킹)
+    둘 다 metadata.artwork_id 로 묶여, 검색은 선택된 유물 안에서만 수행된다.
+    """
     client = _client()
     try:
         client.delete_collection(_COLL)
@@ -37,14 +57,30 @@ def ingest() -> int:
         pass
     coll = client.create_collection(_COLL)
     ids, docs, metas = [], [], []
+
+    # 1) 큐레이션 JSON
     for f in sorted(_CORPUS.glob("*.json")):
         d = json.loads(f.read_text(encoding="utf-8"))
         aid = d["artwork_id"]
         for i, ch in enumerate(d["chunks"]):
-            ids.append(f"{aid}#{i}")
+            ids.append(f"{aid}#json#{i}")
             docs.append(ch["text"])
             metas.append({"artwork_id": aid, "title": d.get("title", ""),
                           "source": ch.get("source", "")})
+
+    # 2) 외부 문서 (corpus/docs/<artwork_id>/*.txt|*.md)
+    docs_root = _CORPUS / "docs"
+    for adir in sorted(docs_root.glob("*")) if docs_root.exists() else []:
+        if not adir.is_dir() or adir.name.startswith("_"):   # _cache 등 내부 폴더 제외
+            continue
+        aid = adir.name
+        for f in sorted(list(adir.glob("*.txt")) + list(adir.glob("*.md"))):
+            src = f.stem
+            for i, ch in enumerate(_chunk(f.read_text(encoding="utf-8"))):
+                ids.append(f"{aid}#doc#{src}#{i}")
+                docs.append(ch)
+                metas.append({"artwork_id": aid, "title": aid, "source": src})
+
     if ids:
         coll.add(ids=ids, documents=docs, metadatas=metas)
     return len(ids)
